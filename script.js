@@ -7,10 +7,10 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TABLE_NAME = "stair_assignments";
 
 const families = {
-  rossi: "Famiglia Rossi",
-  bianchi: "Famiglia Bianchi",
-  verdi: "Famiglia Verdi",
-  neri: "Famiglia Neri"
+  gatti: "App.to Gatti",
+  giuliani: "App.to Giuliani",
+  mancina: "App.to Mancina",
+  vadacca: "App.to Vadacca"
 };
 
 const dayNames = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
@@ -119,7 +119,7 @@ function openModal(weekStart) {
 
   modalTitleEl.textContent = `Settimana ${formatDisplayDate(new Date(weekStart))} → ${formatDisplayDate(weekEndDate)}`;
 
-  familySelectEl.value = assignment?.family_id || "rossi";
+  familySelectEl.value = assignment?.family_id || "gatti";
   noteInputEl.value = assignment?.note || "";
   completedInputEl.checked = Boolean(assignment?.completed);
 
