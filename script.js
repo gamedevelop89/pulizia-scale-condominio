@@ -132,16 +132,25 @@ function closeModal() {
 }
 
 function scrollToCurrentWeek() {
+  if (window.innerWidth > 900) return;
+
   const today = new Date();
   const currentWeekStart = formatDateISO(startOfWeekSunday(today));
-  const target = document.querySelector(`.week-cell[data-week-start="${currentWeekStart}"]`);
 
-  if (target && window.innerWidth <= 900) {
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`.week-cell[data-week-start="${currentWeekStart}"]`);
+
+      if (!target) return;
+
+      const top = window.scrollY + target.getBoundingClientRect().top - 16;
+
+      window.scrollTo({
+        top,
+        behavior: "smooth"
+      });
     });
-  }
+  });
 }
 
 function renderCalendar() {
@@ -234,7 +243,7 @@ todayBtn.addEventListener("click", () => {
   currentMonth = new Date();
   currentMonth.setDate(1);
   renderCalendar();
-  setTimeout(scrollToCurrentWeek, 150);
+  scrollToCurrentWeek();
 });
 
 cancelBtn.addEventListener("click", closeModal);
