@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turni pulizia scale</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Condominio</p>
+        <h1>Turni pulizia scale</h1>
+        <p class="subtitle">
+          Calendario settimanale condiviso per 4 appartamenti.
+        </p>
+      </div>
+    </header>
+
+    <section class="card controls">
+      <div>
+        <p class="label">Mese visualizzato</p>
+        <h2 id="monthTitle">Calendario</h2>
+      </div>
+
+      <div class="nav-buttons">
+        <button id="prevMonth">←</button>
+        <button id="todayBtn">Oggi</button>
+        <button id="nextMonth">→</button>
+      </div>
+    </section>
+
+    <section class="grid-layout">
+      <main class="card">
+        <div id="calendar" class="calendar"></div>
+      </main>
+
+      <aside class="card sidebar">
+        <h3>Famiglie</h3>
+        <div class="families">
+          <div class="family-chip">Famiglia Rossi</div>
+          <div class="family-chip">Famiglia Bianchi</div>
+          <div class="family-chip">Famiglia Verdi</div>
+          <div class="family-chip">Famiglia Neri</div>
+        </div>
+
+        <h3>Legenda</h3>
+        <div class="legend">
+          <div><span class="dot planned"></span> In programma</div>
+          <div><span class="dot done"></span> Fatto</div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="modalTitle">Assegna settimana</h3>
+
+      <label>Famiglia</label>
+      <select id="familySelect">
+        <option value="rossi">Famiglia Rossi</option>
+        <option value="bianchi">Famiglia Bianchi</option>
+        <option value="verdi">Famiglia Verdi</option>
+        <option value="neri">Famiglia Neri</option>
+      </select>
+
+      <label>Nota</label>
+      <textarea id="noteInput" rows="3" placeholder="Nota opzionale"></textarea>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="completedInput" />
+        Settimana completata
+      </label>
+
+      <div class="modal-actions">
+        <button id="deleteBtn" class="danger">Rimuovi</button>
+        <button id="cancelBtn">Annulla</button>
+        <button id="saveBtn" class="primary">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
