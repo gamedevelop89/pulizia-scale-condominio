@@ -53,6 +53,20 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
+.hero-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: block;
+  box-shadow: 0 10px 24px rgba(2, 8, 23, 0.22);
+}
+
 .eyebrow {
   margin: 0 0 8px 0;
   color: var(--accent-2);
