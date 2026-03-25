@@ -39,7 +39,10 @@ currentMonth.setDate(1);
 
 let assignments = [];
 let selectedWeekStart = null;
-let prioritizeCurrentWeekOnMobile = false;
+
+function isMobile() {
+  return window.innerWidth <= 900;
+}
 
 function formatDateISO(date) {
   const y = date.getFullYear();
@@ -75,8 +78,29 @@ function buildMonthGrid(monthDate) {
   return Array.from({ length: 42 }, (_, i) => addDays(start, i));
 }
 
+function getCurrentWeekStart() {
+  return formatDateISO(startOfWeekSunday(new Date()));
+}
+
+function getDefaultFamilyId() {
+  return Object.keys(families)[0];
+}
+
 function getAssignmentByWeek(weekStart) {
   return assignments.find(item => item.week_start === weekStart);
+}
+
+function populateFamilySelect() {
+  if (!familySelectEl) return;
+
+  familySelectEl.innerHTML = "";
+
+  Object.entries(families).forEach(([id, label]) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = label;
+    familySelectEl.appendChild(option);
+  });
 }
 
 async function fetchAssignments() {
@@ -85,21 +109,24 @@ async function fetchAssignments() {
     .select("week_start, family_id, completed, note")
     .order("week_start", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   assignments = data || [];
 }
 
 async function upsertAssignment(data) {
+  const payload = {
+    week_start: data.week_start,
+    family_id: data.family_id,
+    completed: Boolean(data.completed),
+    note: data.note ?? null
+  };
+
   const { error } = await db
     .from(TABLE_NAME)
-    .upsert(data, { onConflict: "week_start" });
+    .upsert(payload, { onConflict: "week_start" });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 }
 
 async function deleteAssignment(weekStart) {
@@ -108,19 +135,18 @@ async function deleteAssignment(weekStart) {
     .delete()
     .eq("week_start", weekStart);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 }
 
 function openModal(weekStart) {
   selectedWeekStart = weekStart;
+
   const assignment = getAssignmentByWeek(weekStart);
-  const weekEndDate = addDays(new Date(weekStart), 7);
+  const weekStartDate = new Date(weekStart);
+  const weekEndDate = addDays(weekStartDate, 7);
 
-  modalTitleEl.textContent = `Settimana ${formatDisplayDate(new Date(weekStart))} → ${formatDisplayDate(weekEndDate)}`;
-
-  familySelectEl.value = assignment?.family_id || "gatti";
+  modalTitleEl.textContent = `Settimana ${formatDisplayDate(weekStartDate)} → ${formatDisplayDate(weekEndDate)}`;
+  familySelectEl.value = assignment?.family_id || getDefaultFamilyId();
   noteInputEl.value = assignment?.note || "";
   completedInputEl.checked = Boolean(assignment?.completed);
 
@@ -132,68 +158,58 @@ function closeModal() {
   selectedWeekStart = null;
 }
 
-function scrollToCurrentWeek() {
-  if (window.innerWidth > 900) return;
-
-  const today = new Date();
-  const currentWeekStart = formatDateISO(startOfWeekSunday(today));
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const target = document.querySelector(`.week-cell[data-week-start="${currentWeekStart}"]`);
-
-      if (!target) return;
-
-      const top = window.scrollY + target.getBoundingClientRect().top - 16;
-
-      window.scrollTo({
-        top,
-        behavior: "smooth"
-      });
-    });
-  });
+function createDayHeader(day) {
+  const dayEl = document.createElement("div");
+  dayEl.className = "day-name";
+  dayEl.textContent = day;
+  return dayEl;
 }
 
-function sortDaysForMobile(days) {
-  if (window.innerWidth > 900 || !prioritizeCurrentWeekOnMobile) {
-    return days;
-  }
+function createWeekBadge() {
+  const badge = document.createElement("div");
+  badge.className = "week-badge";
+  badge.textContent = "Settimana";
+  return badge;
+}
 
-  const currentWeekStart = formatDateISO(startOfWeekSunday(new Date()));
-  const sundayDays = days.filter(date => date.getDay() === 0);
-  const otherDays = days.filter(date => date.getDay() !== 0);
+function createFamilyBox(familyId) {
+  const familyBox = document.createElement("div");
+  familyBox.className = "family-box";
+  familyBox.innerHTML = `<strong>${families[familyId] || familyId}</strong>`;
+  return familyBox;
+}
 
-  const sortedSundays = [...sundayDays].sort((a, b) => {
-    const aKey = formatDateISO(startOfWeekSunday(a));
-    const bKey = formatDateISO(startOfWeekSunday(b));
+function createStatus(completed) {
+  const status = document.createElement("div");
+  status.className = `status ${completed ? "done" : "planned"}`;
+  status.textContent = completed ? "Fatto" : "In programma";
+  return status;
+}
 
-    if (aKey === currentWeekStart) return -1;
-    if (bKey === currentWeekStart) return 1;
-    return a - b;
-  });
-
-  return [...sortedSundays, ...otherDays];
+function createEmptyBox() {
+  const emptyBox = document.createElement("div");
+  emptyBox.className = "empty-box";
+  emptyBox.textContent = "Tocca per assegnare questa settimana";
+  return emptyBox;
 }
 
 function renderCalendar() {
   calendarEl.innerHTML = "";
-
   monthTitleEl.textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 
   dayNames.forEach(day => {
-    const dayEl = document.createElement("div");
-    dayEl.className = "day-name";
-    dayEl.textContent = day;
-    calendarEl.appendChild(dayEl);
+    calendarEl.appendChild(createDayHeader(day));
   });
 
-  const days = sortDaysForMobile(buildMonthGrid(currentMonth));
+  const days = buildMonthGrid(currentMonth);
+  const currentWeekStart = getCurrentWeekStart();
 
   days.forEach(date => {
     const weekStart = formatDateISO(startOfWeekSunday(date));
     const assignment = getAssignmentByWeek(weekStart);
     const isSunday = date.getDay() === 0;
     const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+    const isCurrentWeek = weekStart === currentWeekStart;
 
     const cell = document.createElement("div");
     cell.className = "week-cell";
@@ -203,44 +219,32 @@ function renderCalendar() {
     }
 
     if (isSunday) {
-  cell.classList.add("clickable");
-  cell.dataset.weekStart = weekStart;
-}
+      cell.classList.add("clickable");
+      cell.dataset.weekStart = weekStart;
+
+      if (isCurrentWeek) {
+        cell.style.borderColor = "rgba(103, 232, 249, 0.55)";
+        cell.style.boxShadow = "0 0 0 1px rgba(103, 232, 249, 0.18) inset";
+      }
+    }
 
     const dateEl = document.createElement("div");
     dateEl.className = "week-date";
     dateEl.textContent = `${dayNames[date.getDay()]} ${date.getDate()}`;
     cell.appendChild(dateEl);
 
+    if (isSunday) {
+      cell.appendChild(createWeekBadge());
+    }
+
     if (assignment) {
-      if (isSunday) {
-        const badge = document.createElement("div");
-        badge.className = "week-badge";
-        badge.textContent = "Settimana";
-        cell.appendChild(badge);
-      }
-
-      const familyBox = document.createElement("div");
-      familyBox.className = "family-box";
-      familyBox.innerHTML = `<strong>${families[assignment.family_id] || assignment.family_id}</strong>`;
-      cell.appendChild(familyBox);
+      cell.appendChild(createFamilyBox(assignment.family_id));
 
       if (isSunday) {
-        const status = document.createElement("div");
-        status.className = `status ${assignment.completed ? "done" : "planned"}`;
-        status.textContent = assignment.completed ? "Fatto" : "In programma";
-        cell.appendChild(status);
+        cell.appendChild(createStatus(Boolean(assignment.completed)));
       }
     } else if (isSunday) {
-      const badge = document.createElement("div");
-      badge.className = "week-badge";
-      badge.textContent = "Settimana";
-      cell.appendChild(badge);
-
-      const emptyBox = document.createElement("div");
-      emptyBox.className = "empty-box";
-      emptyBox.textContent = "Tocca per assegnare questa settimana";
-      cell.appendChild(emptyBox);
+      cell.appendChild(createEmptyBox());
     }
 
     if (isSunday) {
@@ -251,24 +255,57 @@ function renderCalendar() {
   });
 }
 
+function focusCurrentWeekOnMobile() {
+  if (!isMobile()) return;
+
+  const currentWeekStart = getCurrentWeekStart();
+  let attempts = 0;
+
+  const tryScroll = () => {
+    const target = document.querySelector(
+      `.week-cell.clickable[data-week-start="${currentWeekStart}"]`
+    );
+
+    if (target) {
+      const top = target.getBoundingClientRect().top + window.pageYOffset - 12;
+
+      window.scrollTo({
+        top: Math.max(top, 0),
+        behavior: "smooth"
+      });
+
+      return;
+    }
+
+    attempts += 1;
+    if (attempts < 12) {
+      requestAnimationFrame(tryScroll);
+    }
+  };
+
+  setTimeout(() => {
+    requestAnimationFrame(tryScroll);
+  }, 120);
+}
+
+function goToToday() {
+  currentMonth = new Date();
+  currentMonth.setDate(1);
+  renderCalendar();
+  focusCurrentWeekOnMobile();
+}
+
 prevMonthBtn.addEventListener("click", () => {
-  prioritizeCurrentWeekOnMobile = false;
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   renderCalendar();
 });
 
 nextMonthBtn.addEventListener("click", () => {
-  prioritizeCurrentWeekOnMobile = false;
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
   renderCalendar();
 });
 
-todayBtn.addEventListener("click", () => {
-  currentMonth = new Date();
-  currentMonth.setDate(1);
-  prioritizeCurrentWeekOnMobile = true;
-  renderCalendar();
-});
+todayBtn.addEventListener("click", goToToday);
 
 cancelBtn.addEventListener("click", closeModal);
 
@@ -321,8 +358,13 @@ window.addEventListener("click", (event) => {
   }
 });
 
+window.addEventListener("resize", () => {
+  renderCalendar();
+});
+
 async function init() {
   try {
+    populateFamilySelect();
     await fetchAssignments();
     renderCalendar();
   } catch (error) {
