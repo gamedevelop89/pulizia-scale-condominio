@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://eckjobbhqlvgyojbdrig.supabase.co";
+const SUPABASE_URL = "eckjobbhqlvgyojbdrig.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVja2pvYmJocWx2Z3lvamJkcmlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzODAyMDksImV4cCI6MjA4OTk1NjIwOX0.iIbBQa8ecMIssL7UFHFhkS6jtg7DZax7QPw83Kx_JSM";
 
 const TABLE_NAME = "stair_assignments";
