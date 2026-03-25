@@ -1,13 +1,16 @@
 const SUPABASE_URL = "https://eckjobbhqlvgyojbdrig.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVja2pvYmJocWx2Z3lvamJkcmlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzODAyMDksImV4cCI6MjA4OTk1NjIwOX0.iIbBQa8ecMIssL7UFHFhkS6jtg7DZax7QPw83Kx_JSM";
 
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const TABLE_NAME = "stair_assignments";
 
 const families = {
-  gatti: "App.to Gatti",
-  giuliani: "App.to Giuliani",
-  mancina: "App.to Mancina",
-  vadacca: "App.to Vadacca"
+  rossi: "Famiglia Rossi",
+  bianchi: "Famiglia Bianchi",
+  verdi: "Famiglia Verdi",
+  neri: "Famiglia Neri"
 };
 
 const dayNames = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
@@ -76,65 +79,47 @@ function getAssignmentByWeek(weekStart) {
 }
 
 async function fetchAssignments() {
-  const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=week_start,family_id,completed,note&order=week_start.asc`;
+  const { data, error } = await db
+    .from(TABLE_NAME)
+    .select("week_start, family_id, completed, note")
+    .order("week_start", { ascending: true });
 
-  const response = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error("Errore nel caricamento dei dati da Supabase");
+  if (error) {
+    throw error;
   }
 
-  assignments = await response.json();
+  assignments = data || [];
 }
 
 async function upsertAssignment(data) {
-  const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}`;
+  const { error } = await db
+    .from(TABLE_NAME)
+    .upsert(data, { onConflict: "week_start" });
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      Prefer: "resolution=merge-duplicates"
-    },
-    body: JSON.stringify([data])
-  });
-
-  if (!response.ok) {
-    throw new Error("Errore durante il salvataggio");
+  if (error) {
+    throw error;
   }
 }
 
 async function deleteAssignment(weekStart) {
-  const url = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?week_start=eq.${weekStart}`;
+  const { error } = await db
+    .from(TABLE_NAME)
+    .delete()
+    .eq("week_start", weekStart);
 
-  const response = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error("Errore durante la rimozione");
+  if (error) {
+    throw error;
   }
 }
 
 function openModal(weekStart) {
   selectedWeekStart = weekStart;
   const assignment = getAssignmentByWeek(weekStart);
-  const weekEnd = formatDateISO(addDays(new Date(weekStart), 7));
+  const weekEndDate = addDays(new Date(weekStart), 7);
 
-  modalTitleEl.textContent = `Settimana ${formatDisplayDate(new Date(weekStart))} → ${formatDisplayDate(new Date(weekEnd))}`;
+  modalTitleEl.textContent = `Settimana ${formatDisplayDate(new Date(weekStart))} → ${formatDisplayDate(weekEndDate)}`;
 
-  familySelectEl.value = assignment?.family_id || "gatti";
+  familySelectEl.value = assignment?.family_id || "rossi";
   noteInputEl.value = assignment?.note || "";
   completedInputEl.checked = Boolean(assignment?.completed);
 
@@ -212,12 +197,12 @@ function renderCalendar() {
   });
 }
 
-prevMonthBtn.addEventListener("click", async () => {
+prevMonthBtn.addEventListener("click", () => {
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   renderCalendar();
 });
 
-nextMonthBtn.addEventListener("click", async () => {
+nextMonthBtn.addEventListener("click", () => {
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
   renderCalendar();
 });
@@ -247,7 +232,8 @@ saveBtn.addEventListener("click", async () => {
     renderCalendar();
     closeModal();
   } catch (error) {
-    alert(error.message);
+    alert("Errore durante il salvataggio: " + (error.message || JSON.stringify(error)));
+    console.error(error);
   } finally {
     saveBtn.disabled = false;
   }
@@ -265,7 +251,8 @@ deleteBtn.addEventListener("click", async () => {
     renderCalendar();
     closeModal();
   } catch (error) {
-    alert(error.message);
+    alert("Errore durante la rimozione: " + (error.message || JSON.stringify(error)));
+    console.error(error);
   } finally {
     deleteBtn.disabled = false;
   }
@@ -282,7 +269,7 @@ async function init() {
     await fetchAssignments();
     renderCalendar();
   } catch (error) {
-    alert("Controlla Project URL e anon key di Supabase nel file script.js");
+    alert("Errore iniziale: " + (error.message || JSON.stringify(error)));
     console.error(error);
   }
 }
