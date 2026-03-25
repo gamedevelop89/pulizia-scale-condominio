@@ -411,6 +411,16 @@ textarea:focus {
     font-size: 14px;
   }
 
+  .hero-title {
+  gap: 12px;
+}
+
+.app-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
   .controls {
     flex-direction: column;
     align-items: stretch;
