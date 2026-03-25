@@ -131,6 +131,19 @@ function closeModal() {
   selectedWeekStart = null;
 }
 
+function scrollToCurrentWeek() {
+  const today = new Date();
+  const currentWeekStart = formatDateISO(startOfWeekSunday(today));
+  const target = document.querySelector(`.week-cell[data-week-start="${currentWeekStart}"]`);
+
+  if (target && window.innerWidth <= 900) {
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+  }
+}
+
 function renderCalendar() {
   calendarEl.innerHTML = "";
 
@@ -159,8 +172,9 @@ function renderCalendar() {
     }
 
     if (isSunday) {
-      cell.classList.add("clickable");
-    }
+  cell.classList.add("clickable");
+  cell.dataset.weekStart = weekStart;
+}
 
     const dateEl = document.createElement("div");
     dateEl.className = "week-date";
@@ -220,6 +234,7 @@ todayBtn.addEventListener("click", () => {
   currentMonth = new Date();
   currentMonth.setDate(1);
   renderCalendar();
+  setTimeout(scrollToCurrentWeek, 150);
 });
 
 cancelBtn.addEventListener("click", closeModal);
