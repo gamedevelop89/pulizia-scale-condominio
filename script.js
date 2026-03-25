@@ -39,6 +39,7 @@ currentMonth.setDate(1);
 
 let assignments = [];
 let selectedWeekStart = null;
+let prioritizeCurrentWeekOnMobile = false;
 
 function formatDateISO(date) {
   const y = date.getFullYear();
@@ -153,6 +154,27 @@ function scrollToCurrentWeek() {
   });
 }
 
+function sortDaysForMobile(days) {
+  if (window.innerWidth > 900 || !prioritizeCurrentWeekOnMobile) {
+    return days;
+  }
+
+  const currentWeekStart = formatDateISO(startOfWeekSunday(new Date()));
+  const sundayDays = days.filter(date => date.getDay() === 0);
+  const otherDays = days.filter(date => date.getDay() !== 0);
+
+  const sortedSundays = [...sundayDays].sort((a, b) => {
+    const aKey = formatDateISO(startOfWeekSunday(a));
+    const bKey = formatDateISO(startOfWeekSunday(b));
+
+    if (aKey === currentWeekStart) return -1;
+    if (bKey === currentWeekStart) return 1;
+    return a - b;
+  });
+
+  return [...sortedSundays, ...otherDays];
+}
+
 function renderCalendar() {
   calendarEl.innerHTML = "";
 
@@ -165,7 +187,7 @@ function renderCalendar() {
     calendarEl.appendChild(dayEl);
   });
 
-  const days = buildMonthGrid(currentMonth);
+  const days = sortDaysForMobile(buildMonthGrid(currentMonth));
 
   days.forEach(date => {
     const weekStart = formatDateISO(startOfWeekSunday(date));
@@ -230,11 +252,13 @@ function renderCalendar() {
 }
 
 prevMonthBtn.addEventListener("click", () => {
+  prioritizeCurrentWeekOnMobile = false;
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   renderCalendar();
 });
 
 nextMonthBtn.addEventListener("click", () => {
+  prioritizeCurrentWeekOnMobile = false;
   currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
   renderCalendar();
 });
@@ -242,8 +266,8 @@ nextMonthBtn.addEventListener("click", () => {
 todayBtn.addEventListener("click", () => {
   currentMonth = new Date();
   currentMonth.setDate(1);
+  prioritizeCurrentWeekOnMobile = true;
   renderCalendar();
-  scrollToCurrentWeek();
 });
 
 cancelBtn.addEventListener("click", closeModal);
