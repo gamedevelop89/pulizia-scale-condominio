@@ -30,6 +30,7 @@ const completedInputEl = document.getElementById("completedInput");
 const prevMonthBtn = document.getElementById("prevMonth");
 const nextMonthBtn = document.getElementById("nextMonth");
 const todayBtn = document.getElementById("todayBtn");
+const refreshBtn = document.getElementById("refreshBtn");
 const saveBtn = document.getElementById("saveBtn");
 const deleteBtn = document.getElementById("deleteBtn");
 const cancelBtn = document.getElementById("cancelBtn");
@@ -306,6 +307,10 @@ nextMonthBtn.addEventListener("click", () => {
 });
 
 todayBtn.addEventListener("click", goToToday);
+
+refreshBtn.addEventListener("click", () => {
+  window.location.reload();
+});
 
 cancelBtn.addEventListener("click", closeModal);
 
