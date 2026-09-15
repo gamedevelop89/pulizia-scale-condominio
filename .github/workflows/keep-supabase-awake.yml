@@ -1,0 +1,99 @@
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # Tre richieste leggere al giorno, in orari non "tondi" per ridurre i ritardi dei cron GitHub.
+    - cron: "17 6 * * *"
+    - cron: "37 14 * * *"
+    - cron: "53 22 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/keep-supabase-awake.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keep-supabase-awake
+  cancel-in-progress: false
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Query Supabase Data API
+        env:
+          SUPABASE_URL: "https://eckjobbhqlvgyojbdrig.supabase.co"
+          # Publishable key: e' progettata da Supabase per essere usata in client e codice pubblico.
+          SUPABASE_PUBLISHABLE_KEY: "sb_publishable_vUi_Npe0fuXNkiW_XkScNg_Uy4URAnU"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          http_code="$(
+            curl \
+              --silent \
+              --show-error \
+              --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 10 \
+              --max-time 20 \
+              --output "$response_file" \
+              --write-out "%{http_code}" \
+              "${SUPABASE_URL}/rest/v1/stair_assignments?select=week_start&limit=1" \
+              -H "apikey: ${SUPABASE_PUBLISHABLE_KEY}"
+          )"
+
+          echo "Supabase HTTP status: ${http_code}"
+          cat "$response_file"
+          echo
+
+          if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
+            echo "Supabase keep-alive failed."
+            exit 1
+          fi
+
+          echo "Supabase keep-alive completed successfully."
+
+      - name: Refresh repository activity once a month
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # I workflow pianificati dei repository pubblici possono essere disattivati
+          # dopo 60 giorni senza attivita'. Un piccolo commit il primo giorno del mese
+          # mantiene attivo anche questo meccanismo senza toccare il codice dell'app.
+          if [[ "$(date -u +%d)" != "01" ]]; then
+            echo "Monthly repository refresh not due today."
+            exit 0
+          fi
+
+          workdir="$(mktemp -d)"
+          git clone --quiet \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "$workdir/repo"
+
+          cd "$workdir/repo"
+          mkdir -p .github
+          printf 'Last automated repository activity: %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            > .github/keepalive-status.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive-status.txt
+
+          if git diff --cached --quiet; then
+            echo "No repository refresh needed."
+            exit 0
+          fi
+
+          git commit --quiet -m "chore: refresh scheduled keepalive"
+          git push --quiet origin HEAD:${GITHUB_REF_NAME}
+          echo "Monthly repository activity refreshed."
