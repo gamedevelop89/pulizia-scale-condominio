@@ -7,10 +7,10 @@ const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const TABLE_NAME = "stair_assignments";
 
 const families = {
-  gatti: "App.to Gatti",
-  giuliani: "App.to Giuliani",
-  mancina: "App.to Mancina",
-  vadacca: "App.to Vadacca"
+  gatti: { label: "App.to Gatti", className: "family-gatti" },
+  giuliani: { label: "App.to Giuliani", className: "family-giuliani" },
+  mancina: { label: "App.to Mancina", className: "family-mancina" },
+  vadacca: { label: "App.to Vadacca", className: "family-vadacca" }
 };
 
 const monthNames = [
@@ -34,6 +34,9 @@ const modalRangeEl = document.getElementById("modalRange");
 const familySelectEl = document.getElementById("familySelect");
 const noteInputEl = document.getElementById("noteInput");
 const completedInputEl = document.getElementById("completedInput");
+const suggestionBoxEl = document.getElementById("suggestionBox");
+const suggestionTextEl = document.getElementById("suggestionText");
+const suggestFamilyBtn = document.getElementById("suggestFamilyBtn");
 
 const prevMonthBtn = document.getElementById("prevMonth");
 const nextMonthBtn = document.getElementById("nextMonth");
@@ -50,6 +53,7 @@ let currentMonth = new Date();
 currentMonth.setDate(1);
 let assignments = [];
 let selectedWeekStart = null;
+let suggestedFamilyId = null;
 
 function pad(value) {
   return String(value).padStart(2, "0");
@@ -91,6 +95,14 @@ function formatWeekRange(weekStart) {
   return `${formatLongDate(start)} → ${formatLongDate(end)}`;
 }
 
+function getFamilyLabel(familyId) {
+  return families[familyId]?.label || familyId;
+}
+
+function getFamilyClass(familyId) {
+  return families[familyId]?.className || "";
+}
+
 function getAssignmentByWeek(weekStart) {
   return assignments.find(item => item.week_start === weekStart);
 }
@@ -119,27 +131,25 @@ function setConnectionState(type, text) {
 function showToast(message, type = "success") {
   toastEl.textContent = message;
   toastEl.className = `toast ${type}`;
-  setTimeout(() => {
-    toastEl.classList.add("hidden");
-  }, 2600);
+  setTimeout(() => toastEl.classList.add("hidden"), 2600);
 }
 
 function populateFamilySelect() {
   familySelectEl.innerHTML = "";
-  Object.entries(families).forEach(([id, label]) => {
+  Object.entries(families).forEach(([id, family]) => {
     const option = document.createElement("option");
     option.value = id;
-    option.textContent = label;
+    option.textContent = family.label;
     familySelectEl.appendChild(option);
   });
 }
 
 function renderFamilies() {
   familiesListEl.innerHTML = "";
-  Object.entries(families).forEach(([id, label], index) => {
+  Object.entries(families).forEach(([id, family]) => {
     const item = document.createElement("div");
     item.className = "family-row";
-    item.innerHTML = `<span class="family-avatar">${index + 1}</span><span>${label}</span>`;
+    item.innerHTML = `<span class="family-avatar ${family.className}"></span><span>${family.label}</span>`;
     familiesListEl.appendChild(item);
   });
 }
@@ -186,6 +196,37 @@ function getStatusMeta(assignment) {
   return { text: "In programma", className: "planned" };
 }
 
+function getSuggestedFamilyId(targetWeekStart) {
+  const targetDate = parseLocalDate(targetWeekStart);
+  const previousAssignments = assignments
+    .filter(item => parseLocalDate(item.week_start) < targetDate)
+    .sort((a, b) => parseLocalDate(b.week_start) - parseLocalDate(a.week_start));
+
+  const latestByFamily = new Map();
+  for (const assignment of previousAssignments) {
+    if (!latestByFamily.has(assignment.family_id)) {
+      latestByFamily.set(assignment.family_id, parseLocalDate(assignment.week_start).getTime());
+    }
+  }
+
+  return Object.keys(families)
+    .map(id => ({ id, last: latestByFamily.get(id) ?? 0 }))
+    .sort((a, b) => a.last - b.last)[0]?.id || Object.keys(families)[0];
+}
+
+function updateSuggestion(weekStart, assignment) {
+  suggestedFamilyId = getSuggestedFamilyId(weekStart);
+  const familyName = getFamilyLabel(suggestedFamilyId);
+
+  if (assignment) {
+    suggestionTextEl.textContent = `Per equilibrio dei turni, il prossimo suggerito sarebbe ${familyName}.`;
+  } else {
+    suggestionTextEl.textContent = `${familyName} è il condomino con il turno meno recente.`;
+  }
+
+  suggestionBoxEl.classList.remove("hidden");
+}
+
 function renderOverviewCard(prefix, weekStart) {
   const assignment = getAssignmentByWeek(weekStart);
   const status = getStatusMeta(assignment);
@@ -197,7 +238,8 @@ function renderOverviewCard(prefix, weekStart) {
   const editBtn = document.getElementById(`edit${prefix[0].toUpperCase() + prefix.slice(1)}WeekBtn`);
 
   rangeEl.textContent = formatWeekRange(weekStart);
-  familyEl.textContent = assignment ? (families[assignment.family_id] || assignment.family_id) : "Nessun turno assegnato";
+  familyEl.textContent = assignment ? getFamilyLabel(assignment.family_id) : "Nessun turno assegnato";
+  familyEl.className = assignment ? `family-heading ${getFamilyClass(assignment.family_id)}` : "";
   noteEl.textContent = assignment?.note || (assignment ? "Nessuna nota per questo turno." : "Apri la settimana per scegliere il condomino incaricato.");
   statusEl.textContent = status.text;
   statusEl.className = `status-badge ${status.className}`;
@@ -220,24 +262,51 @@ function createWeekItem(weekStart) {
   const status = getStatusMeta(assignment);
   const isCurrent = weekStart === getCurrentWeekStart();
 
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `week-row${isCurrent ? " current" : ""}`;
-  button.innerHTML = `
+  const row = document.createElement("div");
+  row.className = `week-row${isCurrent ? " current" : ""}`;
+
+  const mainButton = document.createElement("button");
+  mainButton.type = "button";
+  mainButton.className = "week-row-main";
+  mainButton.innerHTML = `
     <div class="week-dates">
       <span class="week-day">DOM</span>
       <strong>${pad(start.getDate())}</strong>
       <span>${formatShortDate(start)} → ${formatShortDate(end)}</span>
     </div>
     <div class="week-main">
-      <span class="week-family">${assignment ? (families[assignment.family_id] || assignment.family_id) : "Da assegnare"}</span>
+      <span class="week-family ${assignment ? getFamilyClass(assignment.family_id) : ""}">${assignment ? getFamilyLabel(assignment.family_id) : "Da assegnare"}</span>
       <span class="week-note">${assignment?.note || (isCurrent ? "Settimana corrente" : "Nessuna nota")}</span>
     </div>
     <span class="status-badge ${status.className}">${status.text}</span>
     <span class="row-arrow">›</span>
   `;
-  button.addEventListener("click", () => openModal(weekStart));
-  return button;
+  mainButton.addEventListener("click", () => openModal(weekStart));
+  row.appendChild(mainButton);
+
+  if (assignment && !assignment.completed) {
+    const quickDoneBtn = document.createElement("button");
+    quickDoneBtn.type = "button";
+    quickDoneBtn.className = "quick-done-button";
+    quickDoneBtn.textContent = "Segna fatto";
+    quickDoneBtn.addEventListener("click", async event => {
+      event.stopPropagation();
+      try {
+        quickDoneBtn.disabled = true;
+        await upsertAssignment({ ...assignment, completed: true });
+        await refreshAndRender();
+        showToast("Turno segnato come completato");
+      } catch (error) {
+        console.error(error);
+        showToast(`Errore: ${error.message || "operazione non riuscita"}`, "error");
+      } finally {
+        quickDoneBtn.disabled = false;
+      }
+    });
+    row.appendChild(quickDoneBtn);
+  }
+
+  return row;
 }
 
 function renderMonthWeeks() {
@@ -265,10 +334,11 @@ function openModal(weekStart) {
 
   modalTitleEl.textContent = `Settimana del ${formatShortDate(start)}`;
   modalRangeEl.textContent = formatWeekRange(weekStart);
-  familySelectEl.value = assignment?.family_id || Object.keys(families)[0];
+  familySelectEl.value = assignment?.family_id || getSuggestedFamilyId(weekStart);
   noteInputEl.value = assignment?.note || "";
   completedInputEl.checked = Boolean(assignment?.completed);
   deleteBtn.style.visibility = assignment ? "visible" : "hidden";
+  updateSuggestion(weekStart, assignment);
 
   modalEl.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -279,6 +349,7 @@ function closeModal() {
   modalEl.classList.add("hidden");
   document.body.classList.remove("modal-open");
   selectedWeekStart = null;
+  suggestedFamilyId = null;
 }
 
 async function refreshAndRender(showSuccess = false) {
@@ -312,6 +383,11 @@ todayBtn.addEventListener("click", () => {
 refreshBtn.addEventListener("click", () => refreshAndRender(true));
 cancelBtn.addEventListener("click", closeModal);
 closeModalBtn.addEventListener("click", closeModal);
+suggestFamilyBtn.addEventListener("click", () => {
+  if (!suggestedFamilyId) return;
+  familySelectEl.value = suggestedFamilyId;
+  showToast(`Selezionato ${getFamilyLabel(suggestedFamilyId)}`);
+});
 
 modalEl.addEventListener("click", event => {
   if (event.target.dataset.closeModal === "true") closeModal();
