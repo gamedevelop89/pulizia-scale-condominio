@@ -3,91 +3,156 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Turni pulizia scale</title>
+  <meta name="theme-color" content="#f4f0e8" />
+  <title>Turni pulizia scale · Condominio Arlecchino</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" type="image/svg+xml" href="download.svg" />
 </head>
 <body>
-  <div class="app">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Condominio Arlecchino</p>
-        <div class="hero-title">
-  <img src="download.svg" alt="Logo Turni pulizia scale" class="app-logo">
-  <h1>Turni pulizia scale</h1>
-</div>
-        <p class="subtitle">
-          Calendario settimanale condiviso per 4 appartamenti.
-        </p>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="download.svg" alt="" class="brand-logo" />
+        <div>
+          <p class="eyebrow">Condominio Arlecchino</p>
+          <h1>Turni pulizia scale</h1>
+        </div>
+      </div>
+
+      <div id="connectionState" class="connection-state" aria-live="polite">
+        <span class="connection-dot"></span>
+        <span>Connessione…</span>
       </div>
     </header>
 
-    <section class="card controls">
-      <div>
-        <p class="label">Mese visualizzato</p>
-        <h2 id="monthTitle">Calendario</h2>
-      </div>
+    <main>
+      <section class="overview-grid" aria-label="Riepilogo turni">
+        <article id="currentWeekCard" class="overview-card current-card loading-card">
+          <div class="overview-card-head">
+            <span class="pill pill-accent">Questa settimana</span>
+            <span id="currentWeekStatus" class="status-badge neutral">Caricamento</span>
+          </div>
+          <p id="currentWeekRange" class="week-range">—</p>
+          <h2 id="currentWeekFamily">Caricamento…</h2>
+          <p id="currentWeekNote" class="overview-note">Sto recuperando i dati del calendario.</p>
+          <button id="editCurrentWeekBtn" class="text-button" type="button" disabled>Gestisci settimana</button>
+        </article>
 
-     <div class="nav-buttons">
-  <button id="prevMonth">←</button>
-  <button id="todayBtn">Oggi</button>
-  <button id="nextMonth">→</button>
-    <button id="refreshBtn">↻ Refresh</button>
-</div>
-    </section>
+        <article id="nextWeekCard" class="overview-card loading-card">
+          <div class="overview-card-head">
+            <span class="pill">Prossima settimana</span>
+            <span id="nextWeekStatus" class="status-badge neutral">Caricamento</span>
+          </div>
+          <p id="nextWeekRange" class="week-range">—</p>
+          <h2 id="nextWeekFamily">Caricamento…</h2>
+          <p id="nextWeekNote" class="overview-note">Sto recuperando i dati del calendario.</p>
+          <button id="editNextWeekBtn" class="text-button" type="button" disabled>Gestisci settimana</button>
+        </article>
+      </section>
 
-    <section class="grid-layout">
-      <main class="card">
-        <div id="calendar" class="calendar"></div>
-      </main>
-
-      <aside class="card sidebar">
-        <h3>Famiglie</h3>
-        <div class="families">
-          <div class="family-chip">App.to Gatti</div>
-          <div class="family-chip">App.to Giuliani</div>
-          <div class="family-chip">App.to Mancina</div>
-          <div class="family-chip">App.to Vadacca</div>
+      <section class="toolbar-card">
+        <div>
+          <p class="label">Calendario settimanale</p>
+          <h2 id="monthTitle">Calendario</h2>
+          <p class="toolbar-help">Ogni turno va da domenica alla domenica successiva.</p>
         </div>
 
-        <h3>Legenda</h3>
-        <div class="legend">
-          <div><span class="dot planned"></span> In programma</div>
-          <div><span class="dot done"></span> Fatto</div>
+        <div class="toolbar-actions" aria-label="Navigazione calendario">
+          <button id="prevMonth" class="icon-button" type="button" aria-label="Mese precedente">←</button>
+          <button id="todayBtn" class="secondary-button" type="button">Oggi</button>
+          <button id="nextMonth" class="icon-button" type="button" aria-label="Mese successivo">→</button>
+          <button id="refreshBtn" class="secondary-button" type="button">Aggiorna</button>
         </div>
-      </aside>
-    </section>
+      </section>
+
+      <section class="content-grid">
+        <section class="panel calendar-panel">
+          <div class="panel-head">
+            <div>
+              <p class="label">Turni del mese</p>
+              <h3>Settimane</h3>
+            </div>
+            <p id="lastUpdated" class="last-updated">—</p>
+          </div>
+
+          <div id="weeksList" class="weeks-list" aria-live="polite"></div>
+        </section>
+
+        <aside class="panel sidebar">
+          <div class="sidebar-section">
+            <p class="label">Condomini</p>
+            <h3>4 appartamenti</h3>
+            <div id="familiesList" class="families-list"></div>
+          </div>
+
+          <div class="sidebar-section summary-section">
+            <p class="label">Riepilogo mese</p>
+            <div class="summary-grid">
+              <div>
+                <strong id="assignedCount">0</strong>
+                <span>assegnati</span>
+              </div>
+              <div>
+                <strong id="completedCount">0</strong>
+                <span>completati</span>
+              </div>
+              <div>
+                <strong id="unassignedCount">0</strong>
+                <span>da assegnare</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sidebar-section legend-section">
+            <p class="label">Legenda</p>
+            <div class="legend-row"><span class="legend-dot planned"></span>In programma</div>
+            <div class="legend-row"><span class="legend-dot done"></span>Completato</div>
+            <div class="legend-row"><span class="legend-dot empty"></span>Da assegnare</div>
+          </div>
+        </aside>
+      </section>
+    </main>
   </div>
 
-  <div id="modal" class="modal hidden">
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal="true"></div>
     <div class="modal-box">
-      <h3 id="modalTitle">Assegna settimana</h3>
+      <div class="modal-head">
+        <div>
+          <p class="label">Gestione turno</p>
+          <h3 id="modalTitle">Settimana</h3>
+          <p id="modalRange" class="modal-range"></p>
+        </div>
+        <button id="closeModalBtn" class="close-button" type="button" aria-label="Chiudi">×</button>
+      </div>
 
-      <label>Famiglia</label>
-      <select id="familySelect">
-        <option value="gatti">App.to Gatti</option>
-        <option value="giuliani">App.to Giuliani</option>
-        <option value="mancina">App.to Mancina</option>
-        <option value="vadacca">App.to Vadacca</option>
-      </select>
+      <label for="familySelect">Condomino</label>
+      <select id="familySelect"></select>
 
-      <label>Nota</label>
-      <textarea id="noteInput" rows="3" placeholder="Nota opzionale"></textarea>
+      <label for="noteInput">Nota</label>
+      <textarea id="noteInput" rows="4" maxlength="300" placeholder="Es. cambio turno, assenza, promemoria…"></textarea>
 
-      <label class="checkbox-row">
+      <label class="checkbox-card" for="completedInput">
         <input type="checkbox" id="completedInput" />
-        Settimana completata
+        <span>
+          <strong>Pulizia completata</strong>
+          <small>Segna il turno come concluso.</small>
+        </span>
       </label>
 
       <div class="modal-actions">
-        <button id="deleteBtn" class="danger">Rimuovi</button>
-        <button id="cancelBtn">Annulla</button>
-        <button id="saveBtn" class="primary">Salva</button>
+        <button id="deleteBtn" class="danger-button" type="button">Rimuovi turno</button>
+        <div class="modal-actions-right">
+          <button id="cancelBtn" class="secondary-button" type="button">Annulla</button>
+          <button id="saveBtn" class="primary-button" type="button">Salva</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js"></script>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+  <script src="script.js"></script>
 </body>
 </html>
