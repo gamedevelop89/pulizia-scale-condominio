@@ -91,7 +91,7 @@ function formatLongDate(date) {
 
 function formatWeekRange(weekStart) {
   const start = parseLocalDate(weekStart);
-  const end = addDays(start, 7);
+  const end = addDays(start, 6);
   return `${formatLongDate(start)} → ${formatLongDate(end)}`;
 }
 
@@ -258,7 +258,7 @@ function renderOverview() {
 function createWeekItem(weekStart) {
   const assignment = getAssignmentByWeek(weekStart);
   const start = parseLocalDate(weekStart);
-  const end = addDays(start, 7);
+  const end = addDays(start, 6);
   const status = getStatusMeta(assignment);
   const isCurrent = weekStart === getCurrentWeekStart();
 
